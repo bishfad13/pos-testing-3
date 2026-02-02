@@ -71,6 +71,9 @@ interface OrderContextType {
     setFireSuccess: (success: boolean) => void;
     // Validation
     canEditGroup: (groupId: string) => boolean;
+    // Scroll trigger
+    lastAddedGroupId: string | null;
+    clearLastAddedGroupId: () => void;
 }
 
 // --- Context ---
@@ -195,9 +198,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             targetGroupId = 'main'; // default?
         }
 
-        if (activeGroupId !== targetGroupId) {
-            selectGroup(targetGroupId);
-        }
+        // Select the group and set it as the last added group for scroll trigger
+        selectGroup(targetGroupId);
+        setLastAddedGroupId(targetGroupId);
 
         // Check if group is editable. If not, items default to Hold (isFired: false)
         const isEditable = canEditGroup(targetGroupId);
@@ -484,6 +487,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     // --- Kitchen Interactions ---
     const [fireSuccess, setFireSuccess] = useState(false);
 
+    // --- Scroll Trigger ---
+    const [lastAddedGroupId, setLastAddedGroupId] = useState<string | null>(null);
+    const clearLastAddedGroupId = () => setLastAddedGroupId(null);
+
     const fireToKitchen = () => {
         // Fire to kitchen processes ALL groups, not just the active one
         // For each group, send items that are:
@@ -602,7 +609,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             fireToKitchen,
             fireSuccess,
             setFireSuccess,
-            canEditGroup
+            canEditGroup,
+            lastAddedGroupId,
+            clearLastAddedGroupId
         }}>
             {children}
         </OrderContext.Provider>

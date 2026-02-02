@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import TopBar from './TopBar';
 import OrderGroup from './OrderGroup';
 import BottomBar from '../BottomBar';
@@ -18,7 +18,9 @@ export default function RightPanel() {
         isSelectionMode,
         isGroupSelectionMode,
         fireSuccess,
-        setFireSuccess
+        setFireSuccess,
+        lastAddedGroupId,
+        clearLastAddedGroupId
     } = useOrder();
 
     const [showBars, setShowBars] = useState(true);
@@ -26,6 +28,28 @@ export default function RightPanel() {
     const [showExitModal, setShowExitModal] = useState(false);
     const lastScrollY = useRef(0);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Refs for each group to enable scrollIntoView
+    const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    // Auto-scroll to group when an item is added
+    useEffect(() => {
+        if (lastAddedGroupId) {
+            // Expand the group
+            setExpandedGroupIds(prev => new Set(prev).add(lastAddedGroupId));
+
+            // Scroll to the group after a short delay to allow DOM update
+            setTimeout(() => {
+                const groupEl = groupRefs.current[lastAddedGroupId];
+                if (groupEl) {
+                    groupEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+
+            // Clear the trigger
+            clearLastAddedGroupId();
+        }
+    }, [lastAddedGroupId, clearLastAddedGroupId]);
 
     // Auto-hide snackbar handled in component, but we can reset state here
     const handleCloseSnackbar = () => {
@@ -70,6 +94,19 @@ export default function RightPanel() {
         });
     };
 
+    // Handle group click: in default state (no activeGroupId), just expand/collapse
+    // When there's an activeGroupId, allow selecting a different group
+    const handleGroupClick = (groupId: string) => {
+        if (activeGroupId === null) {
+            // Default state: only expand/collapse, don't select
+            toggleGroupExpansion(groupId);
+        } else if (groupId !== activeGroupId) {
+            // Active state: allow switching to a different group
+            selectGroup(groupId);
+            setExpandedGroupIds(prev => new Set(prev).add(groupId));
+        }
+    };
+
     return (
         <div className="relative h-full overflow-hidden bg-white border-l border-gray-200 shadow-xl z-20">
             {/* Top Bar - Sliding */}
@@ -97,20 +134,18 @@ export default function RightPanel() {
 
                 {/* Order Groups List */}
                 {orderGroups.map((group) => (
-                    <OrderGroup
+                    <div
                         key={group.id}
-                        group={group}
-                        isExpanded={expandedGroupIds.has(group.id) || group.id === activeGroupId}
-                        isActive={group.id === activeGroupId}
-                        onToggle={() => toggleGroupExpansion(group.id)}
-                        onSelect={() => {
-                            if (group.id !== activeGroupId) {
-                                selectGroup(group.id);
-                                // Ensure it's expanded when selected
-                                setExpandedGroupIds(prev => new Set(prev).add(group.id));
-                            }
-                        }}
-                    />
+                        ref={(el) => { groupRefs.current[group.id] = el; }}
+                    >
+                        <OrderGroup
+                            group={group}
+                            isExpanded={expandedGroupIds.has(group.id) || group.id === activeGroupId}
+                            isActive={group.id === activeGroupId}
+                            onToggle={() => toggleGroupExpansion(group.id)}
+                            onSelect={() => handleGroupClick(group.id)}
+                        />
+                    </div>
                 ))}
             </div>
 
