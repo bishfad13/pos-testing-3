@@ -36,6 +36,7 @@ interface OrderContextType {
     // Actions
     selectGroup: (groupId: string | null) => void;
     addItemToCategory: (product: Omit<OrderItem, 'id' | 'qty'>, categoryId: string) => void;
+    addItemToActiveGroup: (product: Omit<OrderItem, 'id' | 'qty'>) => void;
     removeItemFromGroup: (groupId: string, itemId: string) => void;
     reorderItems: (groupId: string, activeId: string, overId: string) => void;
     setShowSelectionError: (show: boolean) => void;
@@ -87,8 +88,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const [showMinimumGroupError, setShowMinimumGroupError] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
 
-    const [groupSnapshot, setGroupSnapshot] = useState<OrderItem[] | null>(null);
-
     // derive active group
     const activeGroup = orderGroups.find(g => g.id === activeGroupId);
 
@@ -115,12 +114,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     // Actions
     const selectGroup = (groupId: string | null) => {
-        if (groupId) {
-            const group = orderGroups.find(g => g.id === groupId);
-            if (group) setGroupSnapshot([...group.items]);
-        } else {
-            setGroupSnapshot(null);
-        }
         setActiveGroupId(groupId);
         if (groupId) setShowSelectionError(false); // Clear error if selecting
     };
@@ -140,6 +133,47 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
 
 
+
+    const addItemToActiveGroup = (product: Omit<OrderItem, 'id' | 'qty'>) => {
+        if (!activeGroupId) {
+            setShowSelectionError(true);
+            return;
+        }
+
+        // Check if group is editable. If not, items default to Hold (isFired: false)
+        const isEditable = canEditGroup(activeGroupId);
+        const defaultFiredState = isEditable;
+
+        setOrderGroups(prev => prev.map(group => {
+            if (group.id !== activeGroupId) return group;
+
+            // Check if same product exists
+            const existingItemIndex = group.items.findIndex(item =>
+                item.productId === product.productId &&
+                item.variantName === product.variantName &&
+                item.note === product.note &&
+                !item.isSent
+            );
+
+            if (existingItemIndex !== -1) {
+                const newItems = [...group.items];
+                const existingItem = newItems[existingItemIndex];
+                newItems[existingItemIndex] = {
+                    ...existingItem,
+                    qty: existingItem.qty + 1
+                };
+                return { ...group, items: newItems };
+            }
+
+            const newItem: OrderItem = {
+                ...product,
+                id: Date.now().toString(),
+                qty: 1,
+                isFired: defaultFiredState
+            };
+            return { ...group, items: [...group.items, newItem] };
+        }));
+    };
 
     const addItemToCategory = (product: Omit<OrderItem, 'id' | 'qty'>, categoryId: string) => {
         // Map category to group ID
@@ -280,7 +314,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (targetGroup && targetItem) {
             // Activate the group
             setActiveGroupId(targetGroup.id);
-            setGroupSnapshot([...targetGroup.items]); // Restore snapshot for editing context
 
             // Toggle the status
             setOrderGroups(prev => prev.map(group => {
@@ -537,6 +570,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             showSelectionError,
             selectGroup,
             addItemToCategory,
+            addItemToActiveGroup,
             removeItemFromGroup,
             reorderItems,
             setShowSelectionError,
