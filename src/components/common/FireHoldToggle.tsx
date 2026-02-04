@@ -3,7 +3,7 @@ import { Flame, Hand } from 'lucide-react';
 
 interface FireHoldToggleProps {
     isFired?: boolean;
-    onToggle: () => void;
+    onToggle: (status: boolean) => void;
     disabled?: boolean;
 }
 
@@ -14,7 +14,7 @@ export default function FireHoldToggle({ isFired = false, onToggle, disabled = f
             <div
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (!disabled && isFired) onToggle();
+                    if (!disabled) onToggle(false);
                 }}
                 className={`w-8 h-8 rounded-md flex items-center justify-center transition-all ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${!isFired
                     ? 'bg-black/16 text-gray-800 shadow-sm'
@@ -28,7 +28,7 @@ export default function FireHoldToggle({ isFired = false, onToggle, disabled = f
             <div
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (!disabled && !isFired) onToggle();
+                    if (!disabled) onToggle(true);
                 }}
                 className={`w-8 h-8 rounded-md flex items-center justify-center transition-all ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${isFired
                     ? 'bg-red-500 text-white shadow-sm'

@@ -542,22 +542,34 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 return {
                     ...group,
                     items: group.items.map(item => {
-                        // For editable groups: set hasBeenFired based on CURRENT isFired state
+                        // Skip items that are already sent and have their hasBeenFired status finalized
+                        if (item.isSent && (!item.isFired || item.hasBeenFired)) {
+                            return item;
+                        }
+
+                        // For editable groups: update both isSent and hasBeenFired based on fire intent
                         if (isEditable) {
-                            // Always respect the current isFired intent
-                            return {
-                                ...item,
-                                isSent: true,
-                                hasBeenFired: item.isFired === true // Strict: only true if explicitly isFired
-                            };
+                            const hasBeenFired = item.hasBeenFired || item.isFired;
+
+                            if (!item.isSent || (item.isSent && item.isFired && !item.hasBeenFired)) {
+                                return {
+                                    ...item,
+                                    isSent: true,
+                                    hasBeenFired: hasBeenFired
+                                };
+                            }
+                            return item;
                         }
 
                         // For locked groups: only mark as isSent to protect from discard
                         // Do NOT update hasBeenFired - that will be done when the group becomes editable
-                        return {
-                            ...item,
-                            isSent: true
-                        };
+                        if (!item.isSent) {
+                            return {
+                                ...item,
+                                isSent: true
+                            };
+                        }
+                        return item;
                     })
                 };
             });

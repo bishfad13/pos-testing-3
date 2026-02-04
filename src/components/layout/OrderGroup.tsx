@@ -1,4 +1,4 @@
-import { ChevronUp, Flame, Hand, CheckCircle2 } from 'lucide-react';
+import { ChevronUp, CheckCircle2 } from 'lucide-react';
 import Card from '../common/Card';
 import { type OrderGroup as OrderGroupType, useOrder } from '../../context/OrderContext';
 import OrderItem from './OrderItem';
@@ -17,6 +17,7 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useRef } from 'react';
+import FireHoldToggle from '../common/FireHoldToggle';
 
 interface OrderGroupProps {
     group: OrderGroupType;
@@ -117,6 +118,12 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
         onSelect();
     };
 
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (isGroupSelectionMode) return;
+        toggleGroupSelectionMode(true, group.id);
+    };
+
     // --- DND Sensors ---
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -151,6 +158,7 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerUp}
+                onContextMenu={handleContextMenu}
                 className={`w-full p-2 flex items-start justify-between transition-colors`}
             >
                 <div onClick={handleHeaderClick} className="flex-1">
@@ -165,36 +173,13 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
 
                 <div className="flex items-center gap-2">
                     {!group.hasDistributedToggles && !allItemsCompleted && (
-                        <>
-                            <div
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (hasItems) handleBulkFire(false);
-                                }}
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${!isEditable || !hasItems
-                                    ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                    : !isGroupFired && hasItems
-                                        ? 'bg-black/16 text-text-primary cursor-pointer hover:brightness-95 shadow-sm'
-                                        : 'text-text-primary border border-gray-200 cursor-pointer hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Hand className="w-5 h-5" />
-                            </div>
-                            <div
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (hasItems) handleBulkFire(true);
-                                }}
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${!isEditable || !hasItems
-                                    ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                    : isGroupFired
-                                        ? 'bg-red-500 text-white cursor-pointer hover:brightness-110 shadow-sm'
-                                        : 'bg-white border border-gray-200 text-text-primary cursor-pointer hover:bg-gray-50'
-                                    }`}
-                            >
-                                <Flame className={`w-5 h-5 ${isGroupFired ? 'fill-current' : ''}`} />
-                            </div>
-                        </>
+                        <div className="mr-2">
+                            <FireHoldToggle
+                                isFired={isGroupFired}
+                                onToggle={(status) => handleBulkFire(status)}
+                                disabled={!isEditable || !hasItems}
+                            />
+                        </div>
                     )}
                     <div
                         onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -245,6 +230,7 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
+            onContextMenu={handleContextMenu}
             onClick={handleHeaderClick}
             selected={isActive || isGroupSelected}
             className={`p-4 flex flex-row items-center justify-between cursor-pointer transition-colors shrink-0 h-auto w-full mb-4`}
@@ -264,35 +250,12 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
             </div>
             <div className="flex items-center gap-2">
                 {!group.hasDistributedToggles && !allItemsCompleted && (
-                    <div className="flex items-center gap-2 mr-2">
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (hasItems) handleBulkFire(false);
-                            }}
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${!isEditable || !hasItems
-                                ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
-                                : !isGroupFired && hasItems
-                                    ? 'bg-black/16 text-text-primary cursor-pointer hover:brightness-95 shadow-sm'
-                                    : 'text-text-primary border border-gray-200 cursor-pointer hover:bg-gray-50'
-                                }`}
-                        >
-                            <Hand className="w-5 h-5" />
-                        </div>
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (hasItems) handleBulkFire(true);
-                            }}
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${!isEditable || !hasItems
-                                ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                : isGroupFired
-                                    ? 'bg-red-500 text-white cursor-pointer hover:brightness-110 shadow-sm'
-                                    : 'bg-white border border-gray-200 text-text-primary cursor-pointer hover:bg-gray-50'
-                                }`}
-                        >
-                            <Flame className={`w-5 h-5 ${isGroupFired ? 'fill-current' : ''}`} />
-                        </div>
+                    <div className="mr-2">
+                        <FireHoldToggle
+                            isFired={isGroupFired}
+                            onToggle={(status) => handleBulkFire(status)}
+                            disabled={!isEditable || !hasItems}
+                        />
                     </div>
                 )}
                 <div
