@@ -496,43 +496,69 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         // ALL unsent items get marked as isSent: true (protected from discard)
         // Only items in editable groups get their hasBeenFired status updated based on isFired
 
-        setOrderGroups(prev => prev.map(group => {
-            const isEditable = canEditGroup(group.id);
+        setOrderGroups(prev => {
+            // Helper to check if a group is editable based on current state
+            const isGroupEditable = (groupIndex: number): boolean => {
+                if (groupIndex === 0) return true; // First group always editable
 
-            return {
-                ...group,
-                items: group.items.map(item => {
-                    // Skip items that are already sent and have their hasBeenFired status finalized
-                    if (item.isSent && (!item.isFired || item.hasBeenFired)) {
-                        return item;
-                    }
+                for (let i = 0; i < groupIndex; i++) {
+                    const prevGroup = prev[i];
 
-                    // For editable groups: update both isSent and hasBeenFired based on fire intent
-                    if (isEditable) {
-                        const hasBeenFired = item.hasBeenFired || item.isFired;
+                    // Empty groups don't block
+                    if (prevGroup.items.length === 0) continue;
 
-                        if (!item.isSent || (item.isSent && item.isFired && !item.hasBeenFired)) {
+                    // Get only items that have been sent to kitchen
+                    const sentItems = prevGroup.items.filter(item => item.isSent);
+
+                    // If a previous group has NO sent items (but HAS items), it blocks
+                    if (sentItems.length === 0) return false;
+
+                    // Check if ALL sent items have been FIRED to kitchen
+                    const isGroupCompleted = sentItems.every(item => item.hasBeenFired);
+                    if (!isGroupCompleted) return false;
+                }
+
+                return true;
+            };
+
+            return prev.map((group, groupIndex) => {
+                const isEditable = isGroupEditable(groupIndex);
+
+                return {
+                    ...group,
+                    items: group.items.map(item => {
+                        // Skip items that are already sent and have their hasBeenFired status finalized
+                        if (item.isSent && (!item.isFired || item.hasBeenFired)) {
+                            return item;
+                        }
+
+                        // For editable groups: update both isSent and hasBeenFired based on fire intent
+                        if (isEditable) {
+                            const hasBeenFired = item.hasBeenFired || item.isFired;
+
+                            if (!item.isSent || (item.isSent && item.isFired && !item.hasBeenFired)) {
+                                return {
+                                    ...item,
+                                    isSent: true,
+                                    hasBeenFired: hasBeenFired
+                                };
+                            }
+                            return item;
+                        }
+
+                        // For locked groups: only mark as isSent to protect from discard
+                        // Do NOT update hasBeenFired - that will be done when the group becomes editable
+                        if (!item.isSent) {
                             return {
                                 ...item,
-                                isSent: true,
-                                hasBeenFired: hasBeenFired
+                                isSent: true
                             };
                         }
                         return item;
-                    }
-
-                    // For locked groups: only mark as isSent to protect from discard
-                    // Do NOT update hasBeenFired - that will be done when the group becomes editable
-                    if (!item.isSent) {
-                        return {
-                            ...item,
-                            isSent: true
-                        };
-                    }
-                    return item;
-                })
-            };
-        }));
+                    })
+                };
+            });
+        });
 
         setFireSuccess(true);
         setActiveGroupId(null); // Return to Bill state after firing
