@@ -63,15 +63,15 @@ interface OrderContextType {
     isGroupSelectionMode: boolean;
     selectedGroupId: string | null;
     toggleGroupSelectionMode: (isActive: boolean, groupId?: string) => void;
-    separateGroupFireHold: (groupId: string) => void;
-    combineGroupFireHold: (groupId: string) => void;
+    separateGroupFireHold: () => void;
+    combineGroupFireHold: () => void;
     setGroupFireStatus: (groupId: string, isFired: boolean) => void;
     // Kitchen Interaction
     fireToKitchen: () => void;
     fireSuccess: boolean; // For triggering snackbar
     setFireSuccess: (success: boolean) => void;
     // Validation
-    canEditGroup: (groupId: string) => boolean;
+    canEditGroup: () => boolean;
     // Scroll trigger
     lastAddedGroupId: string | null;
     clearLastAddedGroupId: () => void;

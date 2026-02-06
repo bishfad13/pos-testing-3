@@ -138,20 +138,28 @@ export default function RightPanel() {
                 </div>
 
                 {/* Order Groups List */}
-                {orderGroups.map((group) => (
-                    <div
-                        key={group.id}
-                        ref={(el) => { groupRefs.current[group.id] = el; }}
-                    >
-                        <OrderGroup
-                            group={group}
-                            isExpanded={expandedGroupIds.has(group.id) || group.id === activeGroupId}
-                            isActive={group.id === activeGroupId}
-                            onToggle={() => toggleGroupExpansion(group.id)}
-                            onSelect={() => handleGroupClick(group.id)}
-                        />
+                {orderGroups.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center py-20">
+                        <p className="text-text-secondary text-lg font-medium opacity-60">
+                            No item has been added
+                        </p>
                     </div>
-                ))}
+                ) : (
+                    orderGroups.map((group) => (
+                        <div
+                            key={group.id}
+                            ref={(el) => { groupRefs.current[group.id] = el; }}
+                        >
+                            <OrderGroup
+                                group={group}
+                                isExpanded={expandedGroupIds.has(group.id) || group.id === activeGroupId}
+                                isActive={group.id === activeGroupId}
+                                onToggle={() => toggleGroupExpansion(group.id)}
+                                onSelect={() => handleGroupClick(group.id)}
+                            />
+                        </div>
+                    ))
+                )}
             </div>
 
             <div className={`absolute bottom-0 left-0 right-0 z-20 transition-transform duration-300 ease-in-out ${showBars && !isSelectionMode && !isGroupSelectionMode ? 'translate-y-0' : 'translate-y-full'}`}>

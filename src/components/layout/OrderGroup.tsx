@@ -17,7 +17,6 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useRef } from 'react';
-import FireHoldToggle from '../common/FireHoldToggle';
 
 interface OrderGroupProps {
     group: OrderGroupType;
@@ -33,9 +32,7 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
         setIsDragging,
         isGroupSelectionMode,
         selectedGroupId,
-        toggleGroupSelectionMode,
-        canEditGroup,
-        setGroupFireStatus
+        toggleGroupSelectionMode
     } = useOrder();
     const itemCount = group.items.reduce((acc, item) => acc + item.qty, 0);
 
@@ -45,22 +42,11 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
     const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
     const hasMoved = useRef(false);
 
-    // Check validity for editing
-    const isEditable = canEditGroup(group.id);
-
     // Check if group is currently selected in group selection mode
     const isGroupSelected = isGroupSelectionMode && selectedGroupId === group.id;
 
-    const isGroupFired = group.items.length > 0 && group.items.every(i => i.isFired);
-    const hasItems = group.items.length > 0;
-
     // Check if all items in the group are completed (sent to kitchen and fired)
     const allItemsCompleted = group.items.length > 0 && group.items.every(item => item.isSent && item.hasBeenFired);
-
-    const handleBulkFire = (status: boolean) => {
-        if (!isEditable) return;
-        setGroupFireStatus(group.id, status);
-    };
 
     // --- Long Press Handlers for Group Header ---
     const handlePointerDown = (e: React.PointerEvent) => {
@@ -238,15 +224,6 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
                 </p>
             </div>
             <div className="flex items-center gap-2">
-                {!group.hasDistributedToggles && !allItemsCompleted && (
-                    <div className="mr-2">
-                        <FireHoldToggle
-                            isFired={isGroupFired}
-                            onToggle={(status) => handleBulkFire(status)}
-                            disabled={!isEditable || !hasItems}
-                        />
-                    </div>
-                )}
                 <div
                     className="flex items-center justify-center rotate-180 text-text-secondary p-2 -mr-2 z-10"
                     onClick={(e) => {

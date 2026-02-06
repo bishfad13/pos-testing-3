@@ -5,7 +5,7 @@ import NavigationBarItem from '../common/NavigationBarItem';
 
 export default function BottomNav() {
     const [activeTab, setActiveTab] = useState('Menu');
-    const [activeAction, setActiveAction] = useState('');
+    const [activeAction, setActiveAction] = useState('Bill');
 
     return (
         <NavigationBar
