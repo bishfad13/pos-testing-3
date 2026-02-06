@@ -82,11 +82,7 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 // --- Provider ---
 export function OrderProvider({ children }: { children: ReactNode }) {
-    const [orderGroups, setOrderGroups] = useState<OrderGroup[]>([
-        { id: 'appetizer', name: 'Appetizer', items: [] },
-        { id: 'main', name: 'Main Course', items: [] },
-        { id: 'dessert', name: 'Desserts', items: [] }
-    ]);
+    const [orderGroups, setOrderGroups] = useState<OrderGroup[]>([]);
     const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
     const [showSelectionError, setShowSelectionError] = useState(false);
     const [showMinimumGroupError, setShowMinimumGroupError] = useState(false);
@@ -132,7 +128,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const sentItems = group.items.filter(item => item.isSent);
 
             return { ...group, items: sentItems };
-        }));
+        }).filter(group => group.items.length > 0)); // Remove empty groups after discarding
         selectGroup(null);
     };
 
@@ -144,16 +140,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             return;
         }
 
-        // Check if group is editable. If not, items default to Hold (isFired: false)
-        const isEditable = canEditGroup(activeGroupId);
-
         setOrderGroups(prev => prev.map(group => {
             if (group.id !== activeGroupId) return group;
-
-            // Inheritance logic: if in combined mode, new item follows group's derived state
-            // If group is empty or in distributed mode, use default isEditable state
-            const isGroupCurrentlyFired = group.items.length > 0 && group.items.every(i => i.isFired);
-            const initialFiredState = group.hasDistributedToggles ? isEditable : (group.items.length === 0 ? isEditable : isGroupCurrentlyFired);
 
             // Check if same product exists
             const existingItemIndex = group.items.findIndex(item =>
@@ -177,7 +165,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 ...product,
                 id: Date.now().toString(),
                 qty: 1,
-                isFired: initialFiredState
+                isFired: true // Default to Fire
             };
             return { ...group, items: [...group.items, newItem] };
         }));
@@ -191,51 +179,66 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (catLower.includes('appetizer')) targetGroupId = 'appetizer';
         else if (catLower.includes('main')) targetGroupId = 'main';
         else if (catLower.includes('dessert')) targetGroupId = 'dessert';
-        else targetGroupId = 'main';
+        else targetGroupId = categoryId.toLowerCase().replace(/\s+/g, '-');
+
+        // Capitalize category name for group display
+        const groupName = categoryId.charAt(0).toUpperCase() + categoryId.slice(1);
 
         // Select the group and set it as the last added group for scroll trigger
         selectGroup(targetGroupId);
         setLastAddedGroupId(targetGroupId);
 
-        // Check if group is editable. If not, items default to Hold (isFired: false)
-        const isEditable = canEditGroup(targetGroupId);
+        setOrderGroups(prev => {
+            const groupExists = prev.some(g => g.id === targetGroupId);
 
-        setOrderGroups(prev => prev.map(group => {
-            if (group.id !== targetGroupId) return group;
-
-            // Inheritance logic: if in combined mode, new item follows group's derived state
-            const isGroupCurrentlyFired = group.items.length > 0 && group.items.every(i => i.isFired);
-            const initialFiredState = group.hasDistributedToggles ? isEditable : (group.items.length === 0 ? isEditable : isGroupCurrentlyFired);
-
-            // Check if same product exists (productId, variantName, note)
-            // BUT only combine if the existing item has NOT been sent to kitchen
-            const existingItemIndex = group.items.findIndex(item =>
-                item.productId === product.productId &&
-                item.variantName === product.variantName &&
-                item.note === product.note &&
-                !item.isSent // Only combine with unsent items
-            );
-
-            if (existingItemIndex !== -1) {
-                // Increment quantity of the existing unsent item
-                const newItems = [...group.items];
-                const existingItem = newItems[existingItemIndex];
-                newItems[existingItemIndex] = {
-                    ...existingItem,
-                    qty: existingItem.qty + 1
+            if (!groupExists) {
+                // Create new group if it doesn't exist
+                const newGroup: OrderGroup = {
+                    id: targetGroupId,
+                    name: groupName,
+                    items: [{
+                        ...product,
+                        id: Date.now().toString(),
+                        qty: 1,
+                        isFired: true
+                    }]
                 };
-                return { ...group, items: newItems };
+                return [...prev, newGroup];
             }
 
-            // Add new item (either no match found, or all matches are already sent)
-            const newItem: OrderItem = {
-                ...product,
-                id: Date.now().toString(), // unique instance
-                qty: 1,
-                isFired: initialFiredState // Respect group's current state in combined mode
-            };
-            return { ...group, items: [...group.items, newItem] };
-        }));
+            return prev.map(group => {
+                if (group.id !== targetGroupId) return group;
+
+                // Check if same product exists (productId, variantName, note)
+                // BUT only combine if the existing item has NOT been sent to kitchen
+                const existingItemIndex = group.items.findIndex(item =>
+                    item.productId === product.productId &&
+                    item.variantName === product.variantName &&
+                    item.note === product.note &&
+                    !item.isSent // Only combine with unsent items
+                );
+
+                if (existingItemIndex !== -1) {
+                    // Increment quantity of the existing unsent item
+                    const newItems = [...group.items];
+                    const existingItem = newItems[existingItemIndex];
+                    newItems[existingItemIndex] = {
+                        ...existingItem,
+                        qty: existingItem.qty + 1
+                    };
+                    return { ...group, items: newItems };
+                }
+
+                // Add new item (either no match found, or all matches are already sent)
+                const newItem: OrderItem = {
+                    ...product,
+                    id: Date.now().toString(), // unique instance
+                    qty: 1,
+                    isFired: true // Default to Fire
+                };
+                return { ...group, items: [...group.items, newItem] };
+            });
+        });
     };
 
     const reorderItems = (groupId: string, activeId: string, overId: string) => {
@@ -263,11 +266,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const itemToRemove = group.items.find(i => i.id === itemId);
             if (itemToRemove?.isSent) return group;
 
+            const updatedItems = group.items.filter(i => i.id !== itemId);
             return {
                 ...group,
-                items: group.items.filter(i => i.id !== itemId)
+                items: updatedItems
             };
-        }));
+        }).filter(group => group.items.length > 0)); // Remove empty groups
     };
 
 
@@ -297,7 +301,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
 
     const toggleItemStatus = (itemId: string) => {
-        // ... existing logic ...
         let targetGroup: OrderGroup | undefined;
         let targetItem: OrderItem | undefined;
 
@@ -360,7 +363,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     return !isSelected || item.isSent;
                 })
             };
-        }));
+        }).filter(group => group.items.length > 0)); // Remove empty groups
         toggleSelectionMode(false);
     };
 
@@ -385,27 +388,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         if (!targetGroupId) return;
 
-        // Double check strict rule: Are ALL selected items in this group?
-        // If the user managed to select items across groups (shouldn't happen in current UI), we abort or handle gracefully.
-        // For now, assume single group context or we filter.
-
         setOrderGroups(prev => prev.map(group => {
             if (group.id !== targetGroupId) return group;
 
             const itemsToCombine = group.items.filter(item => selectedItemIds.has(item.id));
             if (itemsToCombine.length < 2) return group; // Need at least 2 to combine
-
-            // Create a new "Combo" parent item
-            // We'll use the first item's name/price or a generic "Combo" name?
-            // User request: "from seperated coffee and milk menu item, when it click combine, it will a group which consist of coffee and milk."
-            // Implicitly, this might need a new name or just use the first one + "Combo"? 
-            // Or maybe just a container. Let's create a generic "Combo" wrapper for now or use the first item as lead.
-            // Let's call it "Combo Group" for now or use the first item's name + " + " + others?
-            // Let's just create a container item. 
-            // Wait, does the container act as a real item? 
-            // "it will a group which consist of coffee and milk"
-            // The user implies they become one unit.
-            // Let's assume the price is the sum of all parts.
 
             const totalPrice = itemsToCombine.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
@@ -419,7 +406,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 price: totalPrice,
                 qty: 1, // The combo itself is 1 unit containing the others
                 subItems: itemsToCombine,
-                isFired: false
+                isFired: true
             };
 
             // Remove selected items and add the combined one
@@ -480,31 +467,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const separateGroupFireHold = (groupId: string) => {
-        setOrderGroups(prev => prev.map(group => {
-            if (group.id !== groupId) return group;
-            return { ...group, hasDistributedToggles: true };
-        }));
-        toggleGroupSelectionMode(false);
+    const separateGroupFireHold = () => {
+        // Obsolete but kept for API compatibility if needed
     };
 
-    const combineGroupFireHold = (groupId: string) => {
-        setOrderGroups(prev => prev.map(group => {
-            if (group.id !== groupId) return group;
-
-            // Unify item states: everything must follow the latest state of the content group when it combined toggle
-            const isGroupFired = group.items.length > 0 && group.items.every(item => item.isFired);
-
-            return {
-                ...group,
-                hasDistributedToggles: false,
-                items: group.items.map(item => ({
-                    ...item,
-                    isFired: item.hasBeenFired ? item.isFired : isGroupFired
-                }))
-            };
-        }));
-        toggleGroupSelectionMode(false);
+    const combineGroupFireHold = () => {
+        // Obsolete but kept for API compatibility if needed
     };
 
     // --- Kitchen Interactions ---
@@ -515,32 +483,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const clearLastAddedGroupId = () => setLastAddedGroupId(null);
 
     const fireToKitchen = () => {
-        // Fire to kitchen processes ALL groups
-        // ALL unsent items get marked as isSent: true (protected from discard)
-        // Only items in editable groups get their hasBeenFired status updated based on isFired
-
         setOrderGroups(prev => {
-            // Helper to check if a group is editable based on current state
-            const isGroupEditable = (groupIndex: number): boolean => {
-                if (groupIndex === 0) return true; // First group always editable
-
-                for (let i = 0; i < groupIndex; i++) {
-                    const prevGroup = prev[i];
-
-                    // Empty groups don't block
-                    if (prevGroup.items.length === 0) continue;
-
-                    // STRICT RULE: ALL items must be fired
-                    const isGroupCompleted = prevGroup.items.every(item => item.hasBeenFired);
-                    if (!isGroupCompleted) return false;
-                }
-
-                return true;
-            };
-
-            return prev.map((group, groupIndex) => {
-                const isEditable = isGroupEditable(groupIndex);
-
+            return prev.map((group) => {
                 return {
                     ...group,
                     items: group.items.map(item => {
@@ -549,26 +493,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                             return item;
                         }
 
-                        // For editable groups: update both isSent and hasBeenFired based on fire intent
-                        if (isEditable) {
-                            const hasBeenFired = item.hasBeenFired || item.isFired;
+                        // Update both isSent and hasBeenFired based on fire intent
+                        // Removed isEditable restriction - all groups can be fired if they have fire intent
+                        const hasBeenFired = item.hasBeenFired || item.isFired;
 
-                            if (!item.isSent || (item.isSent && item.isFired && !item.hasBeenFired)) {
-                                return {
-                                    ...item,
-                                    isSent: true,
-                                    hasBeenFired: hasBeenFired
-                                };
-                            }
-                            return item;
-                        }
-
-                        // For locked groups: only mark as isSent to protect from discard
-                        // Do NOT update hasBeenFired - that will be done when the group becomes editable
-                        if (!item.isSent) {
+                        if (!item.isSent || (item.isSent && item.isFired && !item.hasBeenFired)) {
                             return {
                                 ...item,
-                                isSent: true
+                                isSent: true,
+                                hasBeenFired: hasBeenFired
                             };
                         }
                         return item;
@@ -582,31 +515,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
 
     // Validation
-    const canEditGroup = (groupId: string): boolean => {
-        // Find index
-        const index = orderGroups.findIndex(g => g.id === groupId);
-        if (index === -1) return false;
-        if (index === 0) return true; // First group always editable
-
-        // Check ALL previous groups
-        // All previous groups must be "completed" before this one unlocks
-        // A group is "completed" if it has items AND all items are fired
-        for (let i = 0; i < index; i++) {
-            const prevGroup = orderGroups[i];
-
-            // NEW RULE: Empty groups do NOT block next groups.
-            // If a group is empty, it's considered "skipped" rather than "blocking".
-            if (prevGroup.items.length === 0) {
-                continue;
-            }
-
-            // STRICT RULE: ALL items must be fired
-            const isGroupCompleted = prevGroup.items.every(item => item.hasBeenFired);
-            if (!isGroupCompleted) {
-                return false; // Found an incomplete previous group, so current group is locked
-            }
-        }
-
+    const canEditGroup = (): boolean => {
+        // All groups are now editable regardless of order
         return true;
     };
 

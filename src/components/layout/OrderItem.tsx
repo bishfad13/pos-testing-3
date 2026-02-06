@@ -13,7 +13,7 @@ interface OrderItemProps {
     showIndividualControls?: boolean;
 }
 
-export default function OrderItem({ item, groupId, showIndividualControls = false }: OrderItemProps) {
+export default function OrderItem({ item, groupId }: OrderItemProps) {
     const {
         removeItemFromGroup,
         isSelectionMode,
@@ -144,11 +144,8 @@ export default function OrderItem({ item, groupId, showIndividualControls = fals
     const isCombo = item.subItems && item.subItems.length > 0;
 
     // Determine if toggle should be shown
-    // Individual toggles are shown ONLY if:
-    // 1. Group is explicitly in "distributed" (separated) mode
-    // 2. OR it is a Combo item (combos always need individual control)
-    // CRITICAL: NEVER show toggle if item has actually been fired to kitchen (hasBeenFired).
-    const showToggle = !isSelectionMode && !item.hasBeenFired && (showIndividualControls || isCombo);
+    // Individual toggles are now ALWAYS shown if the item hasn't been fired (sent & fired).
+    const showToggle = !isSelectionMode && !item.hasBeenFired;
 
     return (
         <div ref={setNodeRef} style={style} className="relative w-full group overflow-hidden rounded-lg touch-none">

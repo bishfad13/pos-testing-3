@@ -44,8 +44,6 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
     const longPressTriggered = useRef(false);
     const pointerStartPos = useRef<{ x: number; y: number } | null>(null);
     const hasMoved = useRef(false);
-    // Check if any item is a Combo
-    const hasCombos = group.items.some(item => item.subItems && item.subItems.length > 0);
 
     // Check validity for editing
     const isEditable = canEditGroup(group.id);
@@ -172,15 +170,6 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {!group.hasDistributedToggles && !allItemsCompleted && (
-                        <div className="mr-2">
-                            <FireHoldToggle
-                                isFired={isGroupFired}
-                                onToggle={(status) => handleBulkFire(status)}
-                                disabled={!isEditable || !hasItems}
-                            />
-                        </div>
-                    )}
                     <div
                         onClick={(e) => { e.stopPropagation(); onToggle(); }}
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-text-primary cursor-pointer hover:bg-gray-100"
@@ -211,7 +200,7 @@ export default function OrderGroup({ group, isExpanded, isActive = false, onTogg
                                         key={item.id}
                                         item={item}
                                         groupId={group.id}
-                                        showIndividualControls={(isActive && hasCombos) || group.hasDistributedToggles}
+                                        showIndividualControls={true}
                                     />
                                 ))}
                             </div>
