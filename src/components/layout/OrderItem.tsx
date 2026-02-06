@@ -45,7 +45,7 @@ export default function OrderItem({ item, groupId }: OrderItemProps) {
     // But if you can't edit the group... can you remove items? 
     // Let's assume removal is allowed, but changing status is not.
 
-    const isEditable = canEditGroup(groupId);
+    const isEditable = canEditGroup();
     // Interactive: Not fired (sent & fired). If hasBeenFired, it's totally locked.
     const isInteractive = !item.hasBeenFired;
 
